@@ -1,0 +1,26 @@
+name: Keep Render Servers Alive
+
+on:
+  schedule:
+    - cron: "*/3 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ping All Servers
+        run: |
+          urls=(
+            "https://tts-server-0.onrender.com/ping"
+            "https://moneyunify-sever-2.onrender.com/ping"
+            "https://keepass-server-api-2.onrender.com/ping"
+          )
+
+          for url in "${urls[@]}"
+          do
+            echo "Pinging $url"
+            curl -s $url
+            sleep 5
+          done
