@@ -2,25 +2,85 @@ name: Keep Render Servers Alive
 
 on:
   schedule:
-    - cron: "*/3 * * * *"
-  workflow_dispatch:
+    - cron: '*/5 * * * *'  # Run every 5 minutes (Render spins down after 15 min)
+  workflow_dispatch:        # Allow manual trigger
 
 jobs:
   ping:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        url:
+          - "https://tts-server-0.onrender.com"
+          - "https://moneyunify-sever-2.onrender.com"
+          - "https://keepass-server-api-2.onrender.com"
+      fail-fast: false  # Continue even if one server fails
 
     steps:
-      - name: Ping All Servers
+      - name: Ping ${{ matrix.url }}
         run: |
-          urls=(
-            "https://tts-server-0.onrender.com/ping"
-            "https://moneyunify-sever-2.onrender.com/ping"
-            "https://keepass-server-api-2.onrender.com/ping"
-          )
-
-          for url in "${urls[@]}"
-          do
-            echo "Pinging $url"
-            curl -s $url
-            sleep 5
+          # Define endpoints to try (in order)
+          endpoints=("/ping" "/health" "/")
+          
+          for endpoint in "${endpoints[@]}"; do
+            full_url="${{ matrix.url }}${endpoint}"
+            echo "::group::Pinging $full_url"
+            
+            # Make request with timeout, retry, and custom User-Agent
+            status=$(curl -s -o /dev/null -w "%{http_code}" \
+              --max-time 10 \
+              --retry 2 \
+              --retry-delay 3 \
+              -A "GitHubActions-KeepAlive/1.0" \
+              "$full_url")
+            
+            echo "HTTP Status: $status"
+            
+            if [ "$status" -eq 200 ]; then
+              echo "✅ SUCCESS: $full_url responded with 200"
+              echo "::endgroup::"
+              break  # Exit loop if successful
+            else
+              echo "⚠️  Failed with $status, trying next endpoint..."
+            fi
+            echo "::endgroup::"
           done
+          
+          # If all endpoints failed, log a warning
+          if [ "$status" -ne 200 ]; then
+            echo "::warning::All endpoints for ${{ matrix.url }} failed with status $status"
+            
+            # Optional: Send alert via webhook if configured
+            if [ -n "${{ secrets.ALERT_WEBHOOK }}" ]; then
+              curl -X POST -H 'Content-type: application/json' \
+                --data "{\"text\":\"⚠️ Server down: ${{ matrix.url }} (HTTP $status)\"}" \
+                "${{ secrets.ALERT_WEBHOOK }}" || true
+            fi
+          fi
+
+# name: Keep Render Servers Alive
+
+# on:
+#   schedule:
+#     - cron: "*/3 * * * *"
+#   workflow_dispatch:
+
+# jobs:
+#   ping:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Ping All Servers
+#         run: |
+#           urls=(
+#             "https://tts-server-0.onrender.com/ping"
+#             "https://moneyunify-sever-2.onrender.com/ping"
+#             "https://keepass-server-api-2.onrender.com/ping"
+#           )
+
+#           for url in "${urls[@]}"
+#           do
+#             echo "Pinging $url"
+#             curl -s $url
+#             sleep 5
+#           done
