@@ -28,7 +28,7 @@ jobs:
             
             # Make request with timeout, retry, and custom User-Agent
             status=$(curl -s -o /dev/null -w "%{http_code}" \
-              --max-time 10 \
+              --max-time 30 \
               --retry 2 \
               --retry-delay 3 \
               -A "GitHubActions-KeepAlive/1.0" \
