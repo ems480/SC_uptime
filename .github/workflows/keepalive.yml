@@ -14,6 +14,8 @@ jobs:
           - "https://tts-server-0.onrender.com"
           - "https://moneyunify-sever-2.onrender.com"
           - "https://keepass-server-api-2.onrender.com"
+          - "https://moneyunify-sever-1.onrender.com"
+          - "https://keepass-server-api.onrender.com"
       fail-fast: false  # Continue even if one server fails
 
     steps:
